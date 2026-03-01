@@ -2,9 +2,11 @@ const { test, expect } = require("@playwright/test");
 const path = require("path");
 const fs = require("fs");
 
+// Helper functions
 const { convertPdfToImages, compareImages } = require("../helpers/pdfHelper");
 const { generateHtmlReport } = require("../helpers/reportHelper");
 
+// PDF pairs to compare
 const pdfPairs = [
   { name: "Pair 1", baseline: "sample_file_1_Baseline.pdf", output: "sample_file_1_Output.pdf" },
   { name: "Pair 2", baseline: "sample_file_2_Baseline.pdf", output: "sample_file_2_Output.pdf" }
@@ -12,19 +14,22 @@ const pdfPairs = [
 
 test("PDF Visual Comparison", async () => {
 
+    // Ensure results folder exists
   if (!fs.existsSync("results")) fs.mkdirSync("results");
 
-  const finalResults = [];
+  const finalResults = []; // Store results for all PDF pairs
 
   for (const pair of pdfPairs) {
-    const baselinePath = path.join("test-data", pair.baseline);
-    const outputPath = path.join("test-data", pair.output);
+    const baselinePath = path.join("test-data", pair.baseline); // Stores metadata mismatches (page count, orientation)
+    const outputPath = path.join("test-data", pair.output); // Stores visual diff info per page
+
 
     const metadataIssues = [];
     const visualDifferences = [];
 
-    const safeName = pair.name.replace(/\s+/g, "_");
+    const safeName = pair.name.replace(/\s+/g, "_"); // Remove spaces for filenames
 
+// Convert baseline and output PDFs into images
 const baselineData = await convertPdfToImages(
   baselinePath,
   "results",
@@ -57,6 +62,7 @@ const outputData = await convertPdfToImages(
         diffPath
       );
 
+         // Record any pages where visual difference exceeds threshold
       if (diffPercentage > 0.1) {
         visualDifferences.push({
           pageNumber: i + 1,
@@ -68,6 +74,14 @@ const outputData = await convertPdfToImages(
       }
     }
 
+    // Determine overall PASS/FAIL for this PDF pair
+    let status;
+if (metadataIssues.length === 0 && visualDifferences.length === 0) {
+    status = "PASS"; // No issues detected
+} else {
+    status = "FAIL"; // Metadata or visual differences found
+}
+// Push the result for this pair into the finalResults array
     finalResults.push({
       pairName: pair.name,
       baseline: pair.baseline,
@@ -76,7 +90,8 @@ const outputData = await convertPdfToImages(
       outputPages: outputData.pageCount,
       metadataIssues,
       visualDifferences,
-      status: metadataIssues.length === 0 && visualDifferences.length === 0 ? "PASS" : "FAIL"
+      status
+      //: metadataIssues.length === 0 && visualDifferences.length === 0 ? "PASS" : "FAIL"
     });
   }
 
@@ -85,11 +100,11 @@ const outputData = await convertPdfToImages(
   //expect(finalResults.some(r => r.status === "FAIL")).toBeFalsy();
   //console.log("Comparison completed. Check HTML report for detailed results.");
 
-
+  // Generate HTML report with all results
       generateHtmlReport(finalResults);
 
 const hasFailures = finalResults.some(r => r.status === "FAIL");
-
+// Log summary for console
 if (hasFailures) {
   console.log("Some PDFs have differences. Please review the report.");
 } else {
