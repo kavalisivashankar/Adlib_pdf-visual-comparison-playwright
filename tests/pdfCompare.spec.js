@@ -11,7 +11,7 @@ const pdfPairs = [
 ];
 
 test("PDF Visual Comparison", async () => {
-  test.setTimeout(180000);
+
   if (!fs.existsSync("results")) fs.mkdirSync("results");
 
   const finalResults = [];
